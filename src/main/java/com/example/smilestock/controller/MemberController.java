@@ -1,9 +1,8 @@
 package com.example.smilestock.controller;
 
-import lombok.RequiredArgsConstructor;
+import com.example.smilestock.dto.MemberRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.example.smilestock.service.MemberService;
 
 @RestController
@@ -14,5 +13,11 @@ public class MemberController {
     @Autowired
     public MemberController(MemberService memberService) {
         this.memberService = memberService;
+    }
+
+    @PostMapping("")
+    public String confirmRegisterMember(@RequestBody MemberRequest memberRequest) {
+        memberService.registerMember(memberRequest.getName(), memberRequest.getEmail());
+        return "회원가입이 완료되었습니다.";
     }
 }
