@@ -4,10 +4,8 @@ package com.example.smilestock.controller;
 import com.example.smilestock.service.ChatService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
@@ -24,5 +22,11 @@ public class GptController {
     @PostMapping("")
     public String test(@RequestBody String question) {
         return chatService.getChatResponse(question);
+    }
+
+    // 종목 코드 및 기업 코드 가져오기(DB 저장)
+    @GetMapping("/corpinfo")
+    public ResponseEntity<?> getCorpInfo() {
+        return chatService.getCorpInfo();
     }
 }
