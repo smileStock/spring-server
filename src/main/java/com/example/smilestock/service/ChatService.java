@@ -5,6 +5,8 @@ import com.example.smilestock.entity.StockEntity;
 import com.example.smilestock.repository.AnalysisRepository;
 import com.example.smilestock.repository.StockRepository;
 import io.github.flashvayne.chatgpt.service.ChatgptService;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +21,11 @@ import org.xml.sax.InputSource;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -101,5 +107,106 @@ public class ChatService {
             return ResponseEntity.status(500).body("오류가 발생했습니다.");
         }
         return ResponseEntity.status(200).body("정상적으로 저장되었습니다.");
+    }
+
+
+    // 재무 정보 받아와 DB 저장하기
+    public ResponseEntity<?> analysis() {
+
+        // DB에서 고유 번호 가져오기
+//        List<AnalysisEntity> analysisEntityList = analysisRepository.findAll();
+        AnalysisEntity analysisEntity = analysisRepository.findById(2332L).get();
+
+//        for ( AnalysisEntity analysisEntity : analysisEntityList){
+//            // 정보 가져오기
+//            String corp_code = analysisEntity.getStockEntity().getCorpCode();
+//            String bsns_year = analysisEntity.getYear();
+//            String reprt_code = analysisEntity.getReportCode();
+//
+//
+//        }
+        String corp_code = analysisEntity.getStockEntity().getCorpCode();
+        Integer bsns_year = analysisEntity.getYear();
+        Integer reprt_code = analysisEntity.getReportCode();
+
+        if (bsns_year == null) {
+            bsns_year = 2023;
+        }
+        if (reprt_code == null) {
+            reprt_code = 11014;
+        }
+
+        // dart에 재무정보 요청
+        requestDart(corp_code, bsns_year, reprt_code);
+
+        // GPT에 분석 요청
+        // 분석결과 DB에 저장
+
+        return ResponseEntity.status(200).body("정상적으로 저장되었습니다.");
+    }
+
+    // dart에 재무정보 요청
+    private void requestDart(String corp_code, Integer bsns_year, Integer reprt_code) {
+        String requestURL = String.format(
+                "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json?crtfc_key=%s&corp_code=%s&bsns_year=%s&reprt_code=%s",
+                dartApiKey, corp_code, bsns_year, reprt_code);
+
+        // dart로 요청
+        try {
+            URL url = new URL(requestURL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            // GET 요청을 위한 설정
+            conn.setRequestMethod("GET");
+
+            // 응답 코드 확인 및 응답 내용 읽기
+            int responseCode = conn.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                // 요청 성공
+                // 응답 내용을 처리하는 로직을 여기에 작성하세요
+
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+
+                // 응답 내용을 JSON 객체로 변환
+                JSONObject jsonResponse = new JSONObject(response.toString());
+
+                // JSON에서 데이터 추출
+                String status = jsonResponse.getString("status");
+                String message = jsonResponse.getString("message");
+
+                if ("000".equals(status)) {
+                    JSONArray list = jsonResponse.getJSONArray("list");
+                    for (int i = 0; i < list.length(); i++) {
+                        JSONObject item = list.getJSONObject(i);
+                        // 필요한 정보 추출 예시
+                        String accountNm = item.getString("account_nm");
+                        String thstrmAmount = item.getString("thstrm_amount");
+                        // 추가적인 필드 추출 및 처리...
+
+                        System.out.println("Account Name: " + accountNm);
+                        System.out.println("This Term Amount: " + thstrmAmount);
+                        // 추출한 데이터 처리 로직...
+                    }
+                } else {
+                    System.out.println("API 요청에 문제가 발생했습니다: " + message);
+                }
+
+            } else {
+                // 요청 실패
+                System.out.println("Request did not work: " + responseCode);
+                System.out.println("Response Message : " + conn.getResponseMessage());
+            }
+        } catch (Exception e) {
+            System.out.println("Error occurred while processing corp info: " + e.getMessage());
+            e.printStackTrace();
+        }
+
     }
 }
