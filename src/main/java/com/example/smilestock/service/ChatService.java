@@ -137,7 +137,7 @@ public class ChatService {
         }
 
         // dart에 재무정보 요청
-        requestDart(corp_code, bsns_year, reprt_code);
+        requestDart(analysisEntity, corp_code, bsns_year, reprt_code);
 
         // GPT에 분석 요청
         // 분석결과 DB에 저장
@@ -146,7 +146,7 @@ public class ChatService {
     }
 
     // dart에 재무정보 요청
-    private void requestDart(String corp_code, Integer bsns_year, Integer reprt_code) {
+    private void requestDart(AnalysisEntity analysisEntity, String corp_code, Integer bsns_year, Integer reprt_code) {
         String requestURL = String.format(
                 "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json?crtfc_key=%s&corp_code=%s&bsns_year=%s&reprt_code=%s",
                 dartApiKey, corp_code, bsns_year, reprt_code);
@@ -194,6 +194,11 @@ public class ChatService {
                         System.out.println("This Term Amount: " + thstrmAmount);
                         // 추출한 데이터 처리 로직...
                     }
+                    // DB 저장 로직
+                    analysisEntity.setYear(bsns_year);
+                    analysisEntity.setReportCode(reprt_code);
+                    analysisEntity.setAnalysisResult("양호");
+                    analysisRepository.save(analysisEntity);
                 } else {
                     System.out.println("API 요청에 문제가 발생했습니다: " + message);
                 }
