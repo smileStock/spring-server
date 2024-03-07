@@ -26,6 +26,8 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -114,30 +116,21 @@ public class ChatService {
     public ResponseEntity<?> analysis() {
 
         // DB에서 고유 번호 가져오기
-//        List<AnalysisEntity> analysisEntityList = analysisRepository.findAll();
-        AnalysisEntity analysisEntity = analysisRepository.findById(2332L).get();
+        List<AnalysisEntity> analysisEntityList = analysisRepository.findAll();
+//        AnalysisEntity analysisEntity = analysisRepository.findById(2332L).get();
 
-//        for ( AnalysisEntity analysisEntity : analysisEntityList){
-//            // 정보 가져오기
-//            String corp_code = analysisEntity.getStockEntity().getCorpCode();
-//            String bsns_year = analysisEntity.getYear();
-//            String reprt_code = analysisEntity.getReportCode();
-//
-//
-//        }
-        String corp_code = analysisEntity.getStockEntity().getCorpCode();
-        Integer bsns_year = analysisEntity.getYear();
-        Integer reprt_code = analysisEntity.getReportCode();
+        for ( AnalysisEntity analysisEntity : analysisEntityList){
+            // 정보 가져오기
+            String corp_code = analysisEntity.getStockEntity().getCorpCode();
+            Integer bsns_year = analysisEntity.getYear();
+            Integer reprt_code = analysisEntity.getReportCode();
 
-        if (bsns_year == null) {
-            bsns_year = 2023;
-        }
-        if (reprt_code == null) {
-            reprt_code = 11014;
+            // dart에 재무정보 요청
+            requestDart(analysisEntity, corp_code, bsns_year, reprt_code);
         }
 
-        // dart에 재무정보 요청
-        requestDart(analysisEntity, corp_code, bsns_year, reprt_code);
+
+
 
         // GPT에 분석 요청
         // 분석결과 DB에 저장
@@ -147,6 +140,16 @@ public class ChatService {
 
     // dart에 재무정보 요청
     private void requestDart(AnalysisEntity analysisEntity, String corp_code, Integer bsns_year, Integer reprt_code) {
+
+        List<Integer> reprtCodes = Arrays.asList(11011, 11014, 11012, 11013);
+
+        if (bsns_year == null) {
+            bsns_year = 2023;
+        }
+        if (reprt_code == null) {
+            reprt_code = reprtCodes.get(0);
+        }
+
         String requestURL = String.format(
                 "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json?crtfc_key=%s&corp_code=%s&bsns_year=%s&reprt_code=%s",
                 dartApiKey, corp_code, bsns_year, reprt_code);
@@ -179,7 +182,9 @@ public class ChatService {
 
                 // JSON에서 데이터 추출
                 String status = jsonResponse.getString("status");
+//                System.out.println("status: " + status);
                 String message = jsonResponse.getString("message");
+//                System.out.println("message: " + message);
 
                 if ("000".equals(status)) {
                     JSONArray list = jsonResponse.getJSONArray("list");
@@ -190,8 +195,8 @@ public class ChatService {
                         String thstrmAmount = item.getString("thstrm_amount");
                         // 추가적인 필드 추출 및 처리...
 
-                        System.out.println("Account Name: " + accountNm);
-                        System.out.println("This Term Amount: " + thstrmAmount);
+//                        System.out.println("Account Name: " + accountNm);
+//                        System.out.println("This Term Amount: " + thstrmAmount);
                         // 추출한 데이터 처리 로직...
                     }
                     // DB 저장 로직
@@ -199,7 +204,19 @@ public class ChatService {
                     analysisEntity.setReportCode(reprt_code);
                     analysisEntity.setAnalysisResult("양호");
                     analysisRepository.save(analysisEntity);
-                } else {
+                } else if ("013".equals(status)) {
+                    // 현재 reprt_code의 인덱스를 찾고 다음 우선순위의 코드로 요청합니다.
+                    int currentIndex = reprtCodes.indexOf(reprt_code);
+                    if (currentIndex < reprtCodes.size() - 1) {
+                        requestDart(analysisEntity, corp_code, bsns_year, reprtCodes.get(currentIndex + 1));
+                    } else {
+                        System.out.println("해당 기업은 기업 정보가 더이상 없습니다.");
+                        analysisEntity.setAnalysisResult("없음");
+                        analysisRepository.save(analysisEntity);
+                    }
+                }
+
+                else {
                     System.out.println("API 요청에 문제가 발생했습니다: " + message);
                 }
 
