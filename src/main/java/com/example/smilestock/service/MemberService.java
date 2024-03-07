@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.swing.*;
+import java.util.Optional;
 
 @Service
 public class MemberService {
@@ -16,10 +17,15 @@ public class MemberService {
         this.memberRepository = memberRepository;
     }
 
-    public Member registerMember(String username, String email) {
+    public Member registerMember(String name, String email) {
         Member member = new Member();
-        member.setName(username);
+        member.setName(name);
         member.setEmail(email);
         return memberRepository.save(member);
+    }
+
+    public boolean login(String name, String Email){
+        Optional<Member> optionalMember = memberRepository.findByName(name);
+        return optionalMember.map(member -> member.getEmail().equals(Email)).orElse(false);
     }
 }
