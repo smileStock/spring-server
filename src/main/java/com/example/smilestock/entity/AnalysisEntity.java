@@ -14,6 +14,7 @@ public class AnalysisEntity {
     private String Year;
     private String reportCode;
     private String analysisResult;
-    @OneToOne(mappedBy = "analysisEntity")
+
+    @OneToOne
     private StockEntity stockEntity;
 }

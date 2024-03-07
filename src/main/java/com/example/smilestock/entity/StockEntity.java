@@ -16,6 +16,6 @@ public class StockEntity {
 
     private String stockCode;
 
-    @OneToOne
+    @OneToOne(mappedBy = "stockEntity")
     private AnalysisEntity analysisEntity;
 }

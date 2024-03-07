@@ -1,12 +1,15 @@
 package com.example.smilestock.service;
 
+import com.example.smilestock.entity.AnalysisEntity;
 import com.example.smilestock.entity.StockEntity;
+import com.example.smilestock.repository.AnalysisRepository;
 import com.example.smilestock.repository.StockRepository;
 import io.github.flashvayne.chatgpt.service.ChatgptService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -25,12 +28,15 @@ import java.util.zip.ZipInputStream;
 public class ChatService {
     private final ChatgptService chatgptService;
     private final StockRepository stockRepository;
+    private final AnalysisRepository analysisRepository;
 
     @Autowired
-    public ChatService(ChatgptService chatgptService, StockRepository stockRepository) {
+    public ChatService(ChatgptService chatgptService, StockRepository stockRepository, AnalysisRepository analysisRepository) {
         this.chatgptService = chatgptService;
         this.stockRepository = stockRepository;
+        this.analysisRepository = analysisRepository;
     }
+
     @Value("${dart.api-key}")
     private String dartApiKey;
 
@@ -41,6 +47,7 @@ public class ChatService {
     }
 
     // 종목 코드 및 기업 코드 가져오기(DB 저장)
+    @Transactional
     public ResponseEntity<?> getCorpInfo() {
         try {
             // url로 요청 후 binary 데이터 가져오기
@@ -77,7 +84,11 @@ public class ChatService {
                                     StockEntity stockEntity = new StockEntity();
                                     stockEntity.setCorpCode(corpCode);
                                     stockEntity.setStockCode(stockCode);
-                                    stockRepository.save(stockEntity);
+                                    StockEntity savedStockEntity = stockRepository.save(stockEntity);
+
+                                    AnalysisEntity analysisEntity = new AnalysisEntity();
+                                    analysisEntity.setStockEntity(savedStockEntity);
+                                    analysisRepository.save(analysisEntity);
                                 }
                             }
                         }
