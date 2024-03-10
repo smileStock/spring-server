@@ -32,7 +32,7 @@ public class GptController {
 
     // 재무 정보 받아와 DB 저장하기
     @GetMapping("/analysis")
-    public ResponseEntity<?> analysis() {
-        return chatService.analysis();
+    public ResponseEntity<?> analysis(@RequestParam("stock_code") String stock_code) {
+        return chatService.analysis(stock_code);
     }
 }

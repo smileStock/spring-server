@@ -11,8 +11,8 @@ public class AnalysisEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private Integer Year;
-    private Integer reportCode;
+    private int Year;
+    private int reportCode;
     private String analysisResult;
 
     @OneToOne
