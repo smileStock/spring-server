@@ -179,6 +179,10 @@ public class ChatService {
                         analysisEntity.setReportCode(currentReprtCode);
                         analysisEntity.setAnalysisResult("양호");
                         analysisRepository.save(analysisEntity);
+                        if(index == 3) {
+                            requestDart(analysisEntity,corp_code,bsns_year + 1, 11013);
+                            return;
+                        }
                     } else if ("013".equals(jsonResponse.optString("status"))) {
                         log.info("해당 데이터가 없음: {}", currentReprtCode);
                         break;
