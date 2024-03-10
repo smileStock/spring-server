@@ -41,6 +41,8 @@ public class ChatService {
     private final StockRepository stockRepository;
     private final AnalysisRepository analysisRepository;
 
+    private final List<Integer> reprtCodes = Arrays.asList(11013, 11012, 11014, 11011);
+
     @Autowired
     public ChatService(ChatgptService chatgptService, StockRepository stockRepository, AnalysisRepository analysisRepository) {
         this.chatgptService = chatgptService;
@@ -109,7 +111,7 @@ public class ChatService {
         }
         return ResponseEntity.status(200).body("정상적으로 저장되었습니다.");
     }
-// GPT에 분석 요청
+
     // 분석결과 DB에 저장
 
     // 재무 정보 받아와 DB 저장하기
@@ -128,6 +130,18 @@ public class ChatService {
         AnalysisEntity analysisEntity;
         if (optionalAnalysisEntity.isPresent()) {
             analysisEntity = optionalAnalysisEntity.get();
+            if (analysisEntity.getAnalysisResult().equals("데이터 없음")) {
+                log.info("DB에는 저장되어 있지만 데이터 없어서 바로 반환");
+                return ResponseEntity.status(204).body("데이터 없음");
+            }
+            int nextIndex = reprtCodes.indexOf(analysisEntity.getReportCode()) + 1;
+
+            if (nextIndex >= reprtCodes.size()) {
+                analysisEntity.setYear(analysisEntity.getYear() + 1);
+                nextIndex = 0;  // 새로운 연도의 첫 번째 분기로 설정
+            }
+
+            analysisEntity.setReportCode(reprtCodes.get(nextIndex));
         } else {
             // DB에 데이터가 없으면 현재 년도의 작년 1분기부터 시작
             int lastYear = Year.now().getValue() - 1;
@@ -139,15 +153,19 @@ public class ChatService {
         }
 
         // reportCode와 year을 requestDart에 전달
-        requestDart(analysisEntity, stockEntity.getCorpCode(), analysisEntity.getYear(), analysisEntity.getReportCode());
+        JSONArray jsonArray = requestDart(analysisEntity, stockEntity.getCorpCode(), analysisEntity.getYear(), analysisEntity.getReportCode());
+
+        // GPT에 분석 요청
+        log.info(String.valueOf(jsonArray));
+
         return ResponseEntity.status(200).body("정상적으로 저장되었습니다.");
     }
 
     // dart에 재무정보 요청
-    private void requestDart(AnalysisEntity analysisEntity, String corp_code, Integer bsns_year, Integer reprt_code) {
+    private JSONArray requestDart(AnalysisEntity analysisEntity, String corp_code, Integer bsns_year, Integer reprt_code) {
 
-        List<Integer> reprtCodes = Arrays.asList(11013, 11012, 11014, 11011);
         boolean dataFound = false;
+        JSONArray jsonArray = new JSONArray();
 
         int index = reprtCodes.indexOf(reprt_code);
         for (; index < reprtCodes.size(); index++) {
@@ -179,10 +197,7 @@ public class ChatService {
                         analysisEntity.setReportCode(currentReprtCode);
                         analysisEntity.setAnalysisResult("양호");
                         analysisRepository.save(analysisEntity);
-                        if(index == 3) {
-                            requestDart(analysisEntity,corp_code,bsns_year + 1, 11013);
-                            return;
-                        }
+                        jsonArray = jsonResponse.getJSONArray("list");
                     } else if ("013".equals(jsonResponse.optString("status"))) {
                         log.info("해당 데이터가 없음: {}", currentReprtCode);
                         break;
@@ -202,5 +217,7 @@ public class ChatService {
             analysisEntity.setAnalysisResult("데이터 없음");
             analysisRepository.save(analysisEntity);
         }
+
+        return jsonArray;
     }
 }
