@@ -158,7 +158,9 @@ public class ChatService {
         if (jsonArray.length() > 0) {
             // JSONArray에 내용이 있을 경우
             log.info(String.valueOf(jsonArray));
-            requestChat(jsonArray);
+            String result = requestChat(jsonArray);
+            analysisEntity.setAnalysisResult(result);
+            analysisRepository.save(analysisEntity);
         } else {
             // JSONArray가 비어 있을 경우
             log.info("JSONArray is empty.");
@@ -201,7 +203,7 @@ public class ChatService {
                         dataFound = true;
                         analysisEntity.setYear(bsns_year);
                         analysisEntity.setReportCode(currentReprtCode);
-                        analysisEntity.setAnalysisResult("양호");
+//                        analysisEntity.setAnalysisResult("양호");
                         analysisRepository.save(analysisEntity);
                         jsonArray = jsonResponse.getJSONArray("list");
                     } else if ("013".equals(jsonResponse.optString("status"))) {
@@ -228,7 +230,7 @@ public class ChatService {
     }
 
     // chat GPT에 값 요청
-    private void requestChat(JSONArray jsonArray) {
+    private String requestChat(JSONArray jsonArray) {
         String requestURL = "https://api.openai.com/v1/chat/completions";
 
         try {
@@ -239,7 +241,7 @@ public class ChatService {
             conn.setRequestProperty("Authorization", "Bearer " + chatgptApiKey);
             conn.setDoOutput(true);
 
-            JSONObject requestBody = createRequestBody("Hello!");  // 사용자 메시지를 인자로 전달
+            JSONObject requestBody = createRequestBody(jsonArray);  // 사용자 메시지를 인자로 전달
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] input = requestBody.toString().getBytes("utf-8");
                 os.write(input, 0, input.length);
@@ -265,17 +267,18 @@ public class ChatService {
 
                 log.info(String.valueOf(responseObject));
                 log.info("chatGPT 응답: " + chatbotMessage);
+                return chatbotMessage;
             } else {
                 log.error("Request did not work: " + responseCode + ", " + conn.getResponseMessage());
             }
         } catch (Exception e) {
             log.error("Error occurred while processing corp info: " + e.getMessage());
         }
-
+        return null;
     }
 
     // GPT에 요청할 바디 만들기
-    private JSONObject createRequestBody(String userMessage) {
+    private JSONObject createRequestBody(JSONArray jsonArray) {
         JSONObject requestBody = new JSONObject();
         requestBody.put("model", "gpt-3.5-turbo");
 
@@ -283,8 +286,38 @@ public class ChatService {
 
         JSONObject systemMessage = new JSONObject();
         systemMessage.put("role", "system");
-        systemMessage.put("content", "You are a helpful assistant.");
+        systemMessage.put("content", "아래 제공된 재무 데이터를 바탕으로 회사의 재무 상태를 '양호', '우려', '잠식' 중 하나로 분류하고, 해당하는 단어만을 답변으로 반환해주세요.");
         messages.put(systemMessage);
+
+        // 재무 정보 추출
+        double currentAssets = 0.0, currentLiabilities = 0.0, totalAssets = 0.0, totalLiabilities = 0.0;
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject item = jsonArray.getJSONObject(i);
+            String accountName = item.getString("account_nm");
+            double amount = Double.parseDouble(item.getString("thstrm_amount").replaceAll(",", ""));
+
+            switch (accountName) {
+                case "유동자산":
+                    currentAssets = amount;
+                    break;
+                case "유동부채":
+                    currentLiabilities = amount;
+                    break;
+                case "자산총계":
+                    totalAssets = amount;
+                    break;
+                case "부채총계":
+                    totalLiabilities = amount;
+                    break;
+            }
+        }
+
+        // 질문 구성
+        String userMessage = String.format(
+                "Given the following financial information: 유동자산: %f, 유동부채: %f, 자산총계: %f, 부채총계: %f. " +
+                        "재정 상태가 양호, 우려, 또는 잠식인지 분석해줘.",
+                currentAssets, currentLiabilities, totalAssets, totalLiabilities
+        );
 
         JSONObject userMessageObject = new JSONObject();
         userMessageObject.put("role", "user");
