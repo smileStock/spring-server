@@ -22,9 +22,7 @@ import org.xml.sax.InputSource;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.Year;
@@ -52,7 +50,8 @@ public class ChatService {
 
     @Value("${dart.api-key}")
     private String dartApiKey;
-
+    @Value("${chatgpt.api-key}")
+    private String chatgptApiKey;
 
     public String getChatResponse(String prompt) {
         // ChatGPT 에게 질문을 던집니다.
@@ -156,7 +155,14 @@ public class ChatService {
         JSONArray jsonArray = requestDart(analysisEntity, stockEntity.getCorpCode(), analysisEntity.getYear(), analysisEntity.getReportCode());
 
         // GPT에 분석 요청
-        log.info(String.valueOf(jsonArray));
+        if (jsonArray.length() > 0) {
+            // JSONArray에 내용이 있을 경우
+            log.info(String.valueOf(jsonArray));
+            requestChat(jsonArray);
+        } else {
+            // JSONArray가 비어 있을 경우
+            log.info("JSONArray is empty.");
+        }
 
         return ResponseEntity.status(200).body("정상적으로 저장되었습니다.");
     }
@@ -219,5 +225,74 @@ public class ChatService {
         }
 
         return jsonArray;
+    }
+
+    // chat GPT에 값 요청
+    private void requestChat(JSONArray jsonArray) {
+        String requestURL = "https://api.openai.com/v1/chat/completions";
+
+        try {
+            URL url = new URL(requestURL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + chatgptApiKey);
+            conn.setDoOutput(true);
+
+            JSONObject requestBody = createRequestBody("Hello!");  // 사용자 메시지를 인자로 전달
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = requestBody.toString().getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                StringBuilder response = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+                } catch (IOException e) {
+                    log.error("Error occurred while reading the response: " + e.getMessage());
+                }
+
+                String responseStr = response.toString();
+                JSONObject responseObject = new JSONObject(responseStr);
+                JSONObject firstChoice = responseObject.getJSONArray("choices").getJSONObject(0);
+                String chatbotMessage = firstChoice.getJSONObject("message").getString("content");
+
+                log.info(String.valueOf(responseObject));
+                log.info("chatGPT 응답: " + chatbotMessage);
+            } else {
+                log.error("Request did not work: " + responseCode + ", " + conn.getResponseMessage());
+            }
+        } catch (Exception e) {
+            log.error("Error occurred while processing corp info: " + e.getMessage());
+        }
+
+    }
+
+    // GPT에 요청할 바디 만들기
+    private JSONObject createRequestBody(String userMessage) {
+        JSONObject requestBody = new JSONObject();
+        requestBody.put("model", "gpt-3.5-turbo");
+
+        JSONArray messages = new JSONArray();
+
+        JSONObject systemMessage = new JSONObject();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "You are a helpful assistant.");
+        messages.put(systemMessage);
+
+        JSONObject userMessageObject = new JSONObject();
+        userMessageObject.put("role", "user");
+        userMessageObject.put("content", userMessage);
+        messages.put(userMessageObject);
+
+        requestBody.put("messages", messages);
+
+        return requestBody;
     }
 }
