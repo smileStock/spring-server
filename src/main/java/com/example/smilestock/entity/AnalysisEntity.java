@@ -7,15 +7,14 @@ import lombok.Setter;
 @Entity
 @Setter
 @Getter
-public class StockEntity {
+public class AnalysisEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private int Year;
+    private int reportCode;
+    private String analysisResult;
 
-    private String corpCode;
-
-    private String stockCode;
-
-    @OneToOne(mappedBy = "stockEntity")
-    private AnalysisEntity analysisEntity;
+    @OneToOne
+    private StockEntity stockEntity;
 }
