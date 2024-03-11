@@ -1,5 +1,6 @@
 package com.example.smilestock.service;
 
+import com.example.smilestock.dto.AnalysisDto;
 import com.example.smilestock.entity.AnalysisEntity;
 import com.example.smilestock.entity.StockEntity;
 import com.example.smilestock.repository.AnalysisRepository;
@@ -114,13 +115,14 @@ public class ChatService {
     // 분석결과 DB에 저장
 
     // 재무 정보 받아와 DB 저장하기
-    public ResponseEntity<?> analysis(String stock_code) {
+    public ResponseEntity<AnalysisDto> analysis(String stock_code) {
+        AnalysisDto analysisDto = new AnalysisDto();
 
         // DB에서 고유 번호 가져오기
         Optional<StockEntity> optionalStockEntity = stockRepository.findByStockCode(stock_code);
 
         if (!optionalStockEntity.isPresent()) {
-            return ResponseEntity.status(204).body("해당 종목이 없습니다.");
+            return ResponseEntity.status(204).body(analysisDto);
         }
 
         StockEntity stockEntity = optionalStockEntity.get();
@@ -131,7 +133,8 @@ public class ChatService {
             analysisEntity = optionalAnalysisEntity.get();
             if (analysisEntity.getAnalysisResult().equals("데이터 없음")) {
                 log.info("DB에는 저장되어 있지만 데이터 없어서 바로 반환");
-                return ResponseEntity.status(204).body("데이터 없음");
+                analysisDto.setResult(analysisEntity.getAnalysisResult());
+                return ResponseEntity.status(200).body(analysisDto);
             }
             int nextIndex = reprtCodes.indexOf(analysisEntity.getReportCode()) + 1;
 
@@ -165,8 +168,8 @@ public class ChatService {
             // JSONArray가 비어 있을 경우
             log.info("JSONArray is empty.");
         }
-
-        return ResponseEntity.status(200).body("정상적으로 저장되었습니다.");
+        analysisDto.setResult(analysisEntity.getAnalysisResult());
+        return ResponseEntity.status(200).body(analysisDto);
     }
 
     // dart에 재무정보 요청
