@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Setter
 @Getter
@@ -18,4 +21,7 @@ public class StockEntity {
 
     @OneToOne(mappedBy = "stockEntity")
     private AnalysisEntity analysisEntity;
+
+    @ManyToMany(mappedBy = "stockEntity")
+    private List<Member> members = new ArrayList<>();
 }
