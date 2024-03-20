@@ -13,7 +13,7 @@ public class AnalysisEntity {
     private Long id;
     private int Year;
     private int reportCode;
-    private String analysisResult;
+    private int analysisResult;
 
     @OneToOne
     private StockEntity stockEntity;

@@ -131,7 +131,7 @@ public class ChatService {
         AnalysisEntity analysisEntity;
         if (optionalAnalysisEntity.isPresent()) {
             analysisEntity = optionalAnalysisEntity.get();
-            if (analysisEntity.getAnalysisResult().equals("데이터 없음")) {
+            if (analysisEntity.getAnalysisResult() == -2) {
                 log.info("DB에는 저장되어 있지만 데이터 없어서 바로 반환");
                 analysisDto.setResult(analysisEntity.getAnalysisResult());
                 return ResponseEntity.status(200).body(analysisDto);
@@ -161,7 +161,7 @@ public class ChatService {
         if (jsonArray.length() > 0) {
             // JSONArray에 내용이 있을 경우
             log.info(String.valueOf(jsonArray));
-            String result = requestChat(jsonArray);
+            int result = requestChat(jsonArray);
             analysisEntity.setAnalysisResult(result);
             analysisRepository.save(analysisEntity);
         } else {
@@ -225,7 +225,7 @@ public class ChatService {
             // 처음 요청한 분기가 1분기이고 데이터를 찾지 못했다면 "데이터 없음" 처리
             analysisEntity.setYear(bsns_year);
             analysisEntity.setReportCode(reprt_code);
-            analysisEntity.setAnalysisResult("데이터 없음");
+            analysisEntity.setAnalysisResult(-2);
             analysisRepository.save(analysisEntity);
         }
 
@@ -233,7 +233,7 @@ public class ChatService {
     }
 
     // chat GPT에 값 요청
-    private String requestChat(JSONArray jsonArray) {
+    private int requestChat(JSONArray jsonArray) {
         String requestURL = "https://api.openai.com/v1/chat/completions";
 
         try {
@@ -268,16 +268,25 @@ public class ChatService {
                 JSONObject firstChoice = responseObject.getJSONArray("choices").getJSONObject(0);
                 String chatbotMessage = firstChoice.getJSONObject("message").getString("content");
 
+                int result = -2;
+                if(chatbotMessage.equals("양호")) {
+                    result = 1;
+                } else if(chatbotMessage.equals("우려")) {
+                    result = 0;
+                } else if(chatbotMessage.equals("양호")) {
+                    result = -1;
+                }
+
                 log.info(String.valueOf(responseObject));
                 log.info("chatGPT 응답: " + chatbotMessage);
-                return chatbotMessage;
+                return result;
             } else {
                 log.error("Request did not work: " + responseCode + ", " + conn.getResponseMessage());
             }
         } catch (Exception e) {
             log.error("Error occurred while processing corp info: " + e.getMessage());
         }
-        return null;
+        return -2;
     }
 
     // GPT에 요청할 바디 만들기
