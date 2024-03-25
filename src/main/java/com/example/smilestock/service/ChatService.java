@@ -134,7 +134,7 @@ public class ChatService {
         if (optionalAnalysisEntity.isPresent()) {
             analysisEntity = optionalAnalysisEntity.get();
             dataFound = true;
-            if (analysisEntity.getAnalysisResult() == -2) {
+            if (analysisEntity.getAnalysisResult() == 0) {
                 log.info("DB에는 저장되어 있지만 데이터 없어서 바로 반환");
                 analysisDto.setResult(analysisEntity.getAnalysisResult());
                 return ResponseEntity.status(200).body(analysisDto);
@@ -226,7 +226,7 @@ public class ChatService {
             // 처음 요청한 분기가 1분기이고 데이터를 찾지 못했다면 "데이터 없음" 처리
             analysisEntity.setYear(bsns_year);
             analysisEntity.setReportCode(reprt_code);
-            analysisEntity.setAnalysisResult(-2);
+            analysisEntity.setAnalysisResult(0);
             analysisRepository.save(analysisEntity);
         }
 
@@ -269,13 +269,13 @@ public class ChatService {
                 JSONObject firstChoice = responseObject.getJSONArray("choices").getJSONObject(0);
                 String chatbotMessage = firstChoice.getJSONObject("message").getString("content");
 
-                int result = -2;
+                int result = 0;
                 if(chatbotMessage.equals("양호")) {
-                    result = 1;
+                    result = 3;
                 } else if(chatbotMessage.equals("우려")) {
-                    result = 0;
-                } else if(chatbotMessage.equals("양호")) {
-                    result = -1;
+                    result = 1;
+                } else if(chatbotMessage.equals("잠식")) {
+                    result = 2;
                 }
 
                 log.info(String.valueOf(responseObject));
@@ -287,7 +287,7 @@ public class ChatService {
         } catch (Exception e) {
             log.error("Error occurred while processing corp info: " + e.getMessage());
         }
-        return -2;
+        return 0;
     }
 
     // GPT에 요청할 바디 만들기
