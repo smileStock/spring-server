@@ -129,8 +129,11 @@ public class ChatService {
         Optional<AnalysisEntity> optionalAnalysisEntity = analysisRepository.findByStockEntity(stockEntity);
 
         AnalysisEntity analysisEntity;
+        boolean dataFound = false;
+
         if (optionalAnalysisEntity.isPresent()) {
             analysisEntity = optionalAnalysisEntity.get();
+            dataFound = true;
             if (analysisEntity.getAnalysisResult() == -2) {
                 log.info("DB에는 저장되어 있지만 데이터 없어서 바로 반환");
                 analysisDto.setResult(analysisEntity.getAnalysisResult());
@@ -155,7 +158,7 @@ public class ChatService {
         }
 
         // reportCode와 year을 requestDart에 전달
-        JSONArray jsonArray = requestDart(analysisEntity, stockEntity.getCorpCode(), analysisEntity.getYear(), analysisEntity.getReportCode());
+        JSONArray jsonArray = requestDart(analysisEntity, stockEntity.getCorpCode(), analysisEntity.getYear(), analysisEntity.getReportCode(),dataFound);
 
         // GPT에 분석 요청
         if (jsonArray.length() > 0) {
@@ -173,9 +176,7 @@ public class ChatService {
     }
 
     // dart에 재무정보 요청
-    private JSONArray requestDart(AnalysisEntity analysisEntity, String corp_code, Integer bsns_year, Integer reprt_code) {
-
-        boolean dataFound = false;
+    private JSONArray requestDart(AnalysisEntity analysisEntity, String corp_code, Integer bsns_year, Integer reprt_code, boolean dataFound) {
         JSONArray jsonArray = new JSONArray();
 
         int index = reprtCodes.indexOf(reprt_code);
@@ -221,7 +222,7 @@ public class ChatService {
             }
         }
 
-        if (!dataFound && reprt_code == 11013) {
+        if (!dataFound) {
             // 처음 요청한 분기가 1분기이고 데이터를 찾지 못했다면 "데이터 없음" 처리
             analysisEntity.setYear(bsns_year);
             analysisEntity.setReportCode(reprt_code);
