@@ -15,7 +15,7 @@ public class SwaggerConfig {
     // http://localhost:8080/swagger-ui/index.html
     @Bean
     public GroupedOpenApi chatOpenApi() {
-        String[] paths = {"/"};
+        String[] paths = {"/**"};
 
         return GroupedOpenApi.builder()
                 .group("COUPLE API v1")
